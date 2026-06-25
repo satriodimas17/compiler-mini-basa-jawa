@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Lexer — Compiler Mini Bahasa Jawa</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.6rem;
+            color: #cba6f7;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #6c7086;
+            margin-bottom: 24px;
+        }
+
+        /* Keyword reference */
+        .keyword-box {
+            background: #181825;
+            border: 1px solid #313244;
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            font-size: 0.82rem;
+        }
+        .keyword-box h3 { color: #89b4fa; margin-bottom: 8px; font-size: 0.9rem; }
+        .kw-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 4px 12px;
+        }
+        .kw-item { color: #a6e3a1; }
+        .kw-item span { color: #6c7086; }
+
+        /* Input area */
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            background: #181825;
+            border: 1px solid #313244;
+            border-radius: 8px;
+            color: #cdd6f4;
+            font-size: 1rem;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input[type="text"]:focus { border-color: #cba6f7; }
+        input[type="text"]::placeholder { color: #45475a; }
+
+        button {
+            padding: 12px 24px;
+            background: #cba6f7;
+            color: #1e1e2e;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #b4befe; }
+
+        /* Contoh */
+        .contoh {
+            margin-bottom: 20px;
+            font-size: 0.82rem;
+            color: #6c7086;
+        }
+        .contoh span {
+            display: inline-block;
+            background: #181825;
+            border: 1px solid #313244;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px;
+            color: #89dceb;
+            cursor: pointer;
+            transition: border 0.2s;
+        }
+        .contoh span:hover { border-color: #cba6f7; color: #cba6f7; }
+
+        /* Ringkasan token */
+        .ringkasan {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: bold;
+        }
+
+        /* Tabel token */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #181825;
+            border-radius: 10px;
+            overflow: hidden;
+            font-size: 0.88rem;
+        }
+        thead tr { background: #313244; }
+        th {
+            padding: 10px 14px;
+            text-align: left;
+            color: #89b4fa;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td { padding: 9px 14px; border-bottom: 1px solid #1e1e2e; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #24273a; }
+
+        .no-col   { color: #6c7086; width: 50px; }
+        .tipe-col { font-weight: bold; }
+        .nilai-col { font-family: monospace; }
+        .baris-col { color: #6c7086; width: 60px; }
+
+        /* Warna per tipe token */
+        .t-NUMBER     { color: #fab387; }
+        .t-STRING     { color: #a6e3a1; }
+        .t-KEYWORD    { color: #cba6f7; }
+        .t-IDENTIFIER { color: #89dceb; }
+        .t-OPERATOR   { color: #f38ba8; }
+        .t-COMPARATOR { color: #f9e2af; }
+        .t-DELIMITER  { color: #b4befe; }
+
+        .badge-NUMBER     { background: #3d2b1f; color: #fab387; }
+        .badge-STRING     { background: #1e3a2a; color: #a6e3a1; }
+        .badge-KEYWORD    { background: #2e2040; color: #cba6f7; }
+        .badge-IDENTIFIER { background: #1a3040; color: #89dceb; }
+        .badge-OPERATOR   { background: #3a1f25; color: #f38ba8; }
+        .badge-COMPARATOR { background: #3a3020; color: #f9e2af; }
+        .badge-DELIMITER  { background: #1f2540; color: #b4befe; }
+
+        .error-box {
+            background: #3a1f25;
+            border: 1px solid #f38ba8;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #f38ba8;
+            font-size: 0.88rem;
+        }
+
+        .empty { text-align: center; color: #45475a; padding: 30px; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>🔤 Lexer — Compiler Mini Bahasa Jawa</h1>
+    <p class="subtitle">Teknik Kompilasi &nbsp;|&nbsp; Mecah kode dadi 7 jenis token</p>
+
+    <!-- Referensi Keyword -->
+    <div class="keyword-box">
+        <h3>📖 Keyword Bahasa Jawa</h3>
+        <div class="kw-grid">
+            <div class="kw-item">yen <span>→ if</span></div>
+            <div class="kw-item">menawa <span>→ else</span></div>
+            <div class="kw-item">selawase <span>→ while</span></div>
+            <div class="kw-item">bali <span>→ return</span></div>
+            <div class="kw-item">cetak <span>→ print</span></div>
+            <div class="kw-item">lebokno <span>→ input</span></div>
+            <div class="kw-item">wahana <span>→ var</span></div>
+            <div class="kw-item">gawea <span>→ function</span></div>
+            <div class="kw-item">bener <span>→ true</span></div>
+            <div class="kw-item">salah <span>→ false</span></div>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+        <input type="text" id="kode" placeholder="Tulis ekspresi Bahasa Jawa..." />
+        <button onclick="runLexer()">Proses ▶</button>
+    </div>
+
+    <!-- Contoh klik -->
+    <div class="contoh">
+        Tuladha (klik kanggo ngisi):
+        <span onclick="isi('wahana x = 10 + 5')">wahana x = 10 + 5</span>
+        <span onclick="isi('yen (x > 3) { cetak(x) }')">yen (x > 3) { cetak(x) }</span>
+        <span onclick="isi('selawase (n < 10) { n = n + 1 }')">selawase (n &lt; 10)</span>
+        <span onclick="isi('gawea tambah(a, b) { bali a + b }')">gawea tambah(a, b)</span>
+    </div>
+
+    <!-- Output -->
+    <div id="output"></div>
+
+</div>
+
+<script>
+    // ── Keyword Bahasa Jawa ───────────────────────────────────
+    const KEYWORDS = [
+        'yen','menawa','selawase','baleni','bali',
+        'cetak','lebokno','wahana','gawea','bener','salah','kosong'
+    ];
+
+    // ── 7 Pola Token ─────────────────────────────────────────
+    // Urutan penting: COMPARATOR sadurunge OPERATOR
+    const POLA = [
+        { type: 'NUMBER',     regex: /^\d+(\.\d+)?/         },
+        { type: 'STRING',     regex: /^"[^"]*"/              },
+        { type: 'COMPARATOR', regex: /^(==|!=|<=|>=|<|>)/   },
+        { type: 'OPERATOR',   regex: /^[+\-*/=]/             },
+        { type: 'DELIMITER',  regex: /^[(){},;]/             },
+        { type: 'IDENTIFIER', regex: /^[a-zA-Z_][a-zA-Z0-9_]*/ },
+    ];
+
+    // ── Fungsi Lexer ─────────────────────────────────────────
+    function lexer(code) {
+        let result  = [];
+        let errors  = [];
+        let pos     = 0;
+        let baris   = 1;
+
+        while (pos < code.length) {
+            // skip spasi
+            if (code[pos] === ' ' || code[pos] === '\t') { pos++; continue; }
+            if (code[pos] === '\n') { baris++; pos++; continue; }
+
+            let matchFound = false;
+
+            for (let pola of POLA) {
+                let substring = code.slice(pos);
+                let match = substring.match(pola.regex);
+
+                if (match) {
+                    let nilai = match[0];
+                    let tipe  = pola.type;
+
+                    // Cek yen IDENTIFIER iku KEYWORD
+                    if (tipe === 'IDENTIFIER' && KEYWORDS.includes(nilai)) {
+                        tipe = 'KEYWORD';
+                    }
+
+                    result.push({ tipe, nilai, baris });
+                    pos += nilai.length;
+                    matchFound = true;
+                    break;
+                }
+            }
+
+            if (!matchFound) {
+                errors.push(`Karakter ilegal '${code[pos]}' ing baris ${baris}`);
+                pos++;
+            }
+        }
+
+        return { tokens: result, errors };
+    }
+
+    // ── Jalankan Lexer ───────────────────────────────────────
+    function runLexer() {
+        const code = document.getElementById('kode').value.trim();
+        const out  = document.getElementById('output');
+
+        if (!code) {
+            out.innerHTML = '<p class="empty">Tulis ekspresi dhisik...</p>';
+            return;
+        }
+
+        const { tokens, errors } = lexer(code);
+
+        // Tampilake error yen ana
+        let html = '';
+        if (errors.length > 0) {
+            html += `<div class="error-box">`;
+            errors.forEach(e => { html += `⚠ ${e}<br>`; });
+            html += `</div><br>`;
+        }
+
+        if (tokens.length === 0) {
+            html += '<p class="empty">Ora ana token sing dikenal.</p>';
+            out.innerHTML = html;
+            return;
+        }
+
+        // Ringkasan badge
+        const cacah = {};
+        tokens.forEach(t => { cacah[t.tipe] = (cacah[t.tipe] || 0) + 1; });
+        html += `<div class="ringkasan">`;
+        html += `<span class="badge" style="background:#313244;color:#cdd6f4">Total: ${tokens.length} token</span>`;
+        Object.entries(cacah).forEach(([tipe, n]) => {
+            html += `<span class="badge badge-${tipe}">${tipe}: ${n}</span>`;
+        });
+        html += `</div>`;
+
+        // Tabel token
+        html += `
+        <table>
+            <thead>
+                <tr>
+                    <th class="no-col">No</th>
+                    <th>Tipe</th>
+                    <th>Nilai</th>
+                    <th class="baris-col">Baris</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        tokens.forEach((tok, i) => {
+            html += `
+                <tr>
+                    <td class="no-col">${i + 1}</td>
+                    <td class="tipe-col t-${tok.tipe}">${tok.tipe}</td>
+                    <td class="nilai-col">${escapeHtml(tok.nilai)}</td>
+                    <td class="baris-col">${tok.baris}</td>
+                </tr>`;
+        });
+
+        html += `</tbody></table>`;
+        out.innerHTML = html;
+    }
+
+    // ── Helper ───────────────────────────────────────────────
+    function isi(teks) {
+        document.getElementById('kode').value = teks;
+        runLexer();
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Enter kanggo proses
+    document.getElementById('kode').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') runLexer();
+    });
+</script>
+</body>
+</html>
